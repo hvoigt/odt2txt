@@ -30,6 +30,24 @@ void *xrealloc(void *ptr, size_t size)
 	return ret;
 }
 
+static int strcmp_natural(const char *a, const char *b)
+{
+	int i;
+	for (i=0; a[i] && b[i]; i++) {
+		char ca = a[i], cb = b[i];
+		int na, nb;
+		if (ca == cb)
+			continue;
+		if (!isdigit(ca) || !isdigit(cb))
+			return ca - cb;
+
+		na = atoi(a+i);
+		nb = atoi(b+i);
+		return na - nb;
+	}
+
+	return 0;
+}
 
 /* if there is no exact match, point to the index where the entry could be
  * inserted */
@@ -40,7 +58,7 @@ static int get_entry_index(const struct string_list *list, const char *string,
 
 	while (left + 1 < right) {
 		int middle = (left + right) / 2;
-		int compare = strcmp(string, list->items[middle].string);
+		int compare = strcmp_natural(string, list->items[middle].string);
 		if (compare < 0)
 			right = middle;
 		else if (compare > 0)
@@ -191,7 +209,7 @@ static int cmp_items(const void *a, const void *b)
 {
 	const struct string_list_item *one = a;
 	const struct string_list_item *two = b;
-	return strcmp(one->string, two->string);
+	return strcmp_natural(one->string, two->string);
 }
 
 void sort_string_list(struct string_list *list)
@@ -204,7 +222,7 @@ struct string_list_item *unsorted_string_list_lookup(struct string_list *list,
 {
 	int i;
 	for (i = 0; i < list->nr; i++)
-		if (!strcmp(string, list->items[i].string))
+		if (!strcmp_natural(string, list->items[i].string))
 			return list->items + i;
 	return NULL;
 }
