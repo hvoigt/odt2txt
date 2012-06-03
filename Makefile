@@ -23,7 +23,7 @@ else
 	ZIP_OBJS = kunzip/fileio.o kunzip/zipfile.o
 endif
 
-OBJ = odt2txt.o regex.o mem.o strbuf.o $(ZIP_OBJS)
+OBJ = odt2txt.o regex.o mem.o strbuf.o string-list.o $(ZIP_OBJS)
 TEST_OBJ = t/test-strbuf.o t/test-regex.o
 ALL_OBJ = $(OBJ) $(TEST_OBJ)
 

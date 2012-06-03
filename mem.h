@@ -48,4 +48,28 @@ void *yrealloc_dbg(void *p, size_t size, const char *file, int line);
 #define yrealloc(p, size)  realloc(p, size);
 #endif
 
+extern char *xstrdup(const char *str);
+
+#define alloc_nr(x) (((x)+16)*3/2)
+
+/*
+ * Realloc the buffer pointed at by variable 'x' so that it can hold
+ * at least 'nr' entries; the number of entries currently allocated
+ * is 'alloc', using the standard growing factor alloc_nr() macro.
+ *
+ * DO NOT USE any expression with side-effect for 'x', 'nr', or 'alloc'.
+ */
+#define ALLOC_GROW(x, nr, alloc) \
+	do { \
+		if ((nr) > alloc) { \
+			if (alloc_nr(alloc) < (nr)) \
+				alloc = (nr); \
+			else \
+				alloc = alloc_nr(alloc); \
+			x = xrealloc((x), alloc * sizeof(*(x))); \
+		} \
+	} while (0)
+
+extern void *xrealloc(void *ptr, size_t size);
+
 #endif /* MEM_H */

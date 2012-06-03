@@ -36,6 +36,7 @@
 #include "mem.h"
 #include "regex.h"
 #include "strbuf.h"
+#include "string-list.h"
 #ifdef HAVE_LIBZIP
 #  include <zip.h>
 #else
@@ -595,6 +596,8 @@ int main(int argc, const char **argv)
 	if (!read_one_file(outbuf, opt_filename, "content.xml")) {
 		int j = 0;
 		int offset;
+		struct string_list lof = STRING_LIST_INIT_DUP;
+
 		while (1) {
 			char file[PATH_MAX];
 			offset = kunzip_get_offset_by_number((char*)opt_filename, j++);
@@ -603,17 +606,19 @@ int main(int argc, const char **argv)
 			if(kunzip_get_name((char*)opt_filename, file, offset) < 0) {
 				break;
 			}
-			const char *slides = "ppt/slides";
-			const char *notes = "ppt/notesSlides";
-			if (strncmp(file, slides, strlen(slides))
-			    && strncmp(file, notes, strlen(notes)))
-				continue;
+			string_list_insert(&lof, file);
+		}
+
+		for (i = 0; i < lof.nr; i++) {
+			const char *file = lof.items[i].string;
 			if (!read_one_file(outbuf, opt_filename, file)) {
 				fprintf(stderr,
 					"Can't read from %s: Is it an OpenDocument Text?\n", opt_filename);
 				exit(EXIT_FAILURE);
 			}
 		}
+
+		string_list_clear(&lof, 0);
 	}
 
 	if (opt_output)
