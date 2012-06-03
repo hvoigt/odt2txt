@@ -445,11 +445,14 @@ static void format_doc(STRBUF *buf)
 	RS_E("<text:h[^>]*outline-level=\"1\"[^>]*>([^<]*)<[^>]*>", &h1);
 	RS_E("<text:h[^>]*>([^<]*)<[^>]*>", &h2);  /* other headlines */
 	RS_G("<text:p [^>]*>", "\n\n");            /* normal paragraphs */
-	RS_G("<a:t>", "\n\n");            /* normal paragraphs */
 	RS_G("</text:p>", "\n\n");
-	RS_G("</a:t>", "\n\n");
 	RS_G("<text:tab/>", "  ");                 /* tabs */
 	RS_G("<text:line-break/>", "\n");
+	/* MS Office XML */
+	RS_G("<a:t>", "\n\n");            /* normal paragraphs powerpoint */
+	RS_G("</a:t>", "\n\n");
+	RS_G("<w:t ?[^>]*>", "\n\n");            /* normal paragraphs word */
+	RS_G("</w:t>", "\n\n");
 
 	/* images */
 	RS_E("<draw:frame[^>]*draw:name=\"([^\"]*)\"[^>]*>", &image);
