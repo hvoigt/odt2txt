@@ -18,6 +18,23 @@ STRBUF *kunzip_next_tobuf(char *zip_filename, int offset);
 
 /*
 
+kunzip_get_offset_by_number - Returns the offset to the file that is
+                      x number of files from the begining. Files in a
+                      zip archive start at 0 and end at zip_count_files-1
+
+Example:
+
+kunzip_get_offset_by_number("test.zip",0); // should return an offset of 0
+kunzip_get_offset_by_number("test.zip",1); // should return an offset to the
+                                              second file in the archive 
+
+
+*/
+
+int kunzip_get_offset_by_number(char *zip_filename, int file_count);
+
+/*
+
 kunzip_get_offset_by_name - Search through a zip archive for a filename
                     that either partially or exactly matches.  If offset
                     is set to -1, the search will start at the start of
@@ -50,6 +67,14 @@ Examples:
 
 int kunzip_get_offset_by_name(char *zip_filename, char *compressed_filename,
 			      int match_flags, int skip_offset);
+
+/*
+
+kunzip_get_name - Get the name of the archived file at this offset.
+
+*/
+
+int kunzip_get_name(char *zip_filename, char *name, int offset);
 
 /*
 

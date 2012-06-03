@@ -49,6 +49,8 @@ static char *opt_encoding;
 static int opt_width = 63;
 static const char *opt_filename;
 static char *opt_output;
+static struct stat st;
+static iconv_t ic;
 
 #define SUBST_NONE 0
 #define SUBST_SOME 1
@@ -406,9 +408,7 @@ static STRBUF *read_from_zip(const char *zipfile, const char *filename)
 #endif
 
 	if(-1 == r) {
-		fprintf(stderr,
-			"Can't read from %s: Is it an OpenDocument Text?\n", zipfile);
-		exit(EXIT_FAILURE);
+		return NULL;
 	}
 
 #ifdef HAVE_LIBZIP
@@ -444,7 +444,9 @@ static void format_doc(STRBUF *buf)
 	RS_E("<text:h[^>]*outline-level=\"1\"[^>]*>([^<]*)<[^>]*>", &h1);
 	RS_E("<text:h[^>]*>([^<]*)<[^>]*>", &h2);  /* other headlines */
 	RS_G("<text:p [^>]*>", "\n\n");            /* normal paragraphs */
+	RS_G("<a:t>", "\n\n");            /* normal paragraphs */
 	RS_G("</text:p>", "\n\n");
+	RS_G("</a:t>", "\n\n");
 	RS_G("<text:tab/>", "  ");                 /* tabs */
 	RS_G("<text:line-break/>", "\n");
 
@@ -465,12 +467,38 @@ static void format_doc(STRBUF *buf)
 	RS_O("\n{2,}$",  "\n");
 }
 
-int main(int argc, const char **argv)
+static int read_one_file(STRBUF *outbuf, const char *opt_filename, const char *filename)
 {
-	struct stat st;
-	iconv_t ic;
 	STRBUF *wbuf;
 	STRBUF *docbuf;
+	STRBUF *outbuf1;
+
+	docbuf = read_from_zip(opt_filename, filename);
+	if (!docbuf)
+		return 0;
+
+	if (!opt_raw) {
+		subst_doc(ic, docbuf);
+		format_doc(docbuf);
+	}
+
+	wbuf = wrap(docbuf, opt_width);
+
+	/* remove all trailing whitespace */
+	(void) regex_subst(wbuf, " +\n", _REG_GLOBAL, "\n");
+
+	outbuf1 = conv(ic, wbuf);
+
+	strbuf_append(outbuf, strbuf_get(outbuf1));
+	strbuf_free(wbuf);
+	strbuf_free(docbuf);
+	strbuf_free(outbuf1);
+
+	return 1;
+}
+
+int main(int argc, const char **argv)
+{
 	STRBUF *outbuf;
 	int i = 1;
 
@@ -562,20 +590,31 @@ int main(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	/* read content.xml */
-	docbuf = read_from_zip(opt_filename, "content.xml");
+	outbuf = strbuf_new();
 
-	if (!opt_raw) {
-		subst_doc(ic, docbuf);
-		format_doc(docbuf);
+	if (!read_one_file(outbuf, opt_filename, "content.xml")) {
+		int j = 0;
+		int offset;
+		while (1) {
+			char file[PATH_MAX];
+			offset = kunzip_get_offset_by_number((char*)opt_filename, j++);
+			if (offset < 0)
+				break;
+			if(kunzip_get_name((char*)opt_filename, file, offset) < 0) {
+				break;
+			}
+			const char *slides = "ppt/slides";
+			const char *notes = "ppt/notesSlides";
+			if (strncmp(file, slides, strlen(slides))
+			    && strncmp(file, notes, strlen(notes)))
+				continue;
+			if (!read_one_file(outbuf, opt_filename, file)) {
+				fprintf(stderr,
+					"Can't read from %s: Is it an OpenDocument Text?\n", opt_filename);
+				exit(EXIT_FAILURE);
+			}
+		}
 	}
-
-	wbuf = wrap(docbuf, opt_width);
-
-	/* remove all trailing whitespace */
-	(void) regex_subst(wbuf, " +\n", _REG_GLOBAL, "\n");
-
-	outbuf = conv(ic, wbuf);
 
 	if (opt_output)
 		write_to_file(outbuf, opt_output);
@@ -583,8 +622,6 @@ int main(int argc, const char **argv)
 		fwrite(strbuf_get(outbuf), strbuf_len(outbuf), 1, stdout);
 
 	finish_conv(ic);
-	strbuf_free(wbuf);
-	strbuf_free(docbuf);
 	strbuf_free(outbuf);
 #ifndef NO_ICONV
 	yfree(opt_encoding);

@@ -223,6 +223,43 @@ STRBUF *kunzip_next_tobuf(char *zip_filename, int offset)
 	return buf;
 }
 
+int kunzip_get_offset_by_number(char *zip_filename, int file_count)
+{
+	FILE *in;
+	struct zip_local_file_header_t local_file_header;
+	int count;
+	int i=0,curr;
+
+	in=fopen(zip_filename,"rb");
+	if (in==0)
+	{ return -1; }
+
+	count=0;
+
+	while(1)
+	{
+		curr=ftell(in);
+		if (count==file_count) break;
+
+		i=read_zip_header(in,&local_file_header);
+		if (i==-1) break;
+
+		fseek(in, local_file_header.compressed_size +
+		      local_file_header.file_name_length +
+		      local_file_header.extra_field_length +
+		      local_file_header.descriptor_length, SEEK_CUR);
+
+		count++;
+	}
+
+	fclose(in);
+
+	if (i!=-1)
+	{ return curr; }
+	else
+	{ return -1; }
+}
+
 /*
   Match Flags:
   bit 0: set to 1 if it should be exact filename match
@@ -299,4 +336,26 @@ int kunzip_get_offset_by_name(char *zip_filename, char *compressed_filename,
 	} else {
 		return -1;
 	}
+}
+
+int kunzip_get_name(char *zip_filename, char *name, int offset)
+{
+	FILE *in;
+	struct zip_local_file_header_t local_file_header;
+	int i;
+
+	in=fopen(zip_filename,"rb");
+	if (in==0)
+	{ return -1; }
+
+	fseek(in,offset,SEEK_SET);
+
+	i=read_zip_header(in,&local_file_header);
+	if (i<0) return i;
+
+	read_chars(in,name,local_file_header.file_name_length);
+
+	fclose(in);
+
+	return 0;
 }
